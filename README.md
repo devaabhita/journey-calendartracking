@@ -116,7 +116,7 @@ DB_USER=root
 DB_PASSWORD=
 DB_HOST=localhost
 DB_PORT=3306
-DB_NAME=todolist
+DB_NAME=sesuaikan dengan nama database
 ```
 
 ### 4. Jalankan Server FastAPI
