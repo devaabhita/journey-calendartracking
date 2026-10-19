@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🧭 Journey Tracker - Kalender & Pelacak Sasaran Harian</title>
+  <meta name="description" content="Aplikasi to-do list berbasis kalender dan journey (tujuan besar) dengan progres harian, streak, checklist, dan jadwal kegiatan berulang.">
+  
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-compass"></i>
+        </div>
+        <div class="brand-info">
+          <h1>Journey Tracker</h1>
+          <span class="brand-tagline">Achieve Big Goals</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="tab-calendar">
+          <i class="fa-solid fa-calendar-days"></i>
+          <span>Kalender Utama</span>
+        </button>
+        <button class="nav-item" data-tab="tab-journeys">
+          <i class="fa-solid fa-route"></i>
+          <span>Daftar Journeys</span>
+          <span class="badge" id="nav-journey-count">0</span>
+        </button>
+        <button class="nav-item" data-tab="tab-analytics">
+          <i class="fa-solid fa-chart-line"></i>
+          <span>Rekap & Statistik</span>
+        </button>
+        <button class="nav-item" data-tab="tab-reflections">
+          <i class="fa-solid fa-feather-pointed"></i>
+          <span>Refleksi & Mood</span>
+        </button>
+      </nav>
+
+      <!-- Quick Action: Recurring Schedule Button -->
+      <div class="sidebar-recurring-action">
+        <button class="btn btn-recurring-schedule" id="btn-open-recurring-modal">
+          <i class="fa-solid fa-repeat"></i>
+          <span>Atur Jadwal Berulang</span>
+        </button>
+      </div>
+
+      <!-- Streak Widget in Sidebar -->
+      <div class="sidebar-streak-card">
+        <div class="streak-header">
+          <div class="streak-flame">
+            <i class="fa-solid fa-fire-flame-curved"></i>
+          </div>
+          <div>
+            <div class="streak-label">Daily Streak</div>
+            <div class="streak-value" id="sidebar-current-streak">0 Hari</div>
+          </div>
+        </div>
+        <div class="streak-meta">
+          <span>Rekor: <strong id="sidebar-longest-streak">0 Hari</strong></span>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="server-status">
+          <span class="status-indicator online"></span>
+          <span>FastAPI + MySQL Active</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- TOPBAR SEPERTI SKETSA PENGGUNA -->
+      <header class="topbar-sketch">
+        <!-- Bagian Kiri: Bulan & Navigasi -->
+        <div class="month-selector-block">
+          <div class="month-title-wrap">
+            <h2 id="calendar-month-heading">OKTOBER</h2>
+            <span class="year-label" id="calendar-year-heading">2026</span>
+          </div>
+          <div class="month-nav-btns">
+            <button class="btn-icon btn-sm" id="btn-prev-month" title="Bulan Sebelumnya">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button class="btn btn-sm btn-ghost" id="btn-current-month">Bulan Ini</button>
+            <button class="btn-icon btn-sm" id="btn-next-month" title="Bulan Berikutnya">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Bagian Tengah: Banner INFORMASI RIWAYAT JOURNEY TRACKING SINGKAT -->
+        <div class="journey-summary-pill" id="journey-summary-pill">
+          <div class="pill-badge">
+            <i class="fa-solid fa-chart-pie"></i> INFORMASI RIWAYAT JOURNEY TRACKING SINGKAT
+          </div>
+          <div class="pill-content" id="pill-content-text">
+            Memuat ringkasan journey...
+          </div>
+        </div>
+
+        <!-- Bagian Kanan: STREAKS Circle & Action Buttons -->
+        <div class="topbar-right-block">
+          <div class="streaks-circle" title="Streak Hari Beruntun Menyelesaikan Task">
+            <div class="streaks-circle-inner">
+              <span class="streaks-circle-number" id="streak-circle-val">0</span>
+              <span class="streaks-circle-label">STREAKS</span>
+            </div>
+          </div>
+          <div class="topbar-buttons">
+            <button class="btn btn-secondary btn-sm" id="btn-open-recurring-modal-top">
+              <i class="fa-solid fa-repeat"></i> Jadwal Berulang
+            </button>
+            <button class="btn btn-primary btn-sm" id="btn-open-task-modal">
+              <i class="fa-solid fa-circle-plus"></i> Tambah Task
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- ========================================================= -->
+      <!-- TAB 1: KALENDER UTAMA & DETAIL HARI INI (MATCH SKETCH)    -->
+      <!-- ========================================================= -->
+      <section id="tab-calendar" class="tab-pane active">
+        <div class="calendar-layout-split">
+          <!-- SISI KIRI: TABEL KALENDER BULANAN LENGKAP -->
+          <div class="calendar-main-card">
+            <div class="calendar-table-wrap">
+              <!-- Calendar Weekdays Header -->
+              <div class="calendar-weekdays-header">
+                <div class="weekday-col sunday">MINGGU</div>
+                <div class="weekday-col">SENIN</div>
+                <div class="weekday-col">SELASA</div>
+                <div class="weekday-col">RABU</div>
+                <div class="weekday-col">KAMIS</div>
+                <div class="weekday-col">JUM'AT</div>
+                <div class="weekday-col saturday">SABTU</div>
+              </div>
+
+              <!-- Calendar Days Grid (Diisi oleh JS) -->
+              <div id="calendar-days-grid" class="calendar-days-grid">
+                <!-- Injected dynamically via app.js -->
+              </div>
+            </div>
+          </div>
+
+          <!-- SISI KANAN: PANEL HARI INI / TANGGAL TERPILIH -->
+          <div class="day-details-panel">
+            <div class="day-panel-header">
+              <div class="day-panel-title-block">
+                <h3 id="panel-day-headline">Hari ini:</h3>
+                <p class="panel-date-sub" id="panel-date-full">Senin, 19 Oktober 2026</p>
+              </div>
+              <button class="btn btn-sm btn-ghost" id="btn-open-day-popover" title="Buka Detail Popover">
+                <i class="fa-solid fa-up-right-from-square"></i>
+              </button>
+            </div>
+
+            <!-- Progress bar di hari ini -->
+            <div class="day-progress-summary">
+              <div class="day-progress-labels">
+                <span>Progres Hari Ini</span>
+                <strong id="panel-day-progress-pct">0%</strong>
+              </div>
+              <div class="progress-track">
+                <div class="progress-fill" id="panel-day-progress-bar" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <!-- Task List Hari Terpilih -->
+            <div class="day-tasks-container">
+              <div class="day-tasks-top">
+                <h4>Daftar Kegiatan</h4>
+                <span class="tasks-count-pill" id="panel-task-count">0 Kegiatan</span>
+              </div>
+              <div id="panel-tasks-list" class="panel-tasks-list">
+                <!-- Injected dynamically via app.js -->
+              </div>
+            </div>
+
+            <div class="day-panel-footer">
+              <button class="btn btn-primary btn-block" id="btn-add-task-to-selected-day">
+                <i class="fa-solid fa-plus"></i> Tambah Kegiatan di Hari Ini
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================= -->
+      <!-- TAB 2: DAFTAR JOURNEYS HUB                                -->
+      <!-- ========================================================= -->
+      <section id="tab-journeys" class="tab-pane">
+        <div class="section-action-header">
+          <div>
+            <h3>Daftar Journey & Target Besar</h3>
+            <p class="section-desc">Pecah target jangka panjangmu menjadi langkah terukur setiap hari.</p>
+          </div>
+          <button class="btn btn-primary" id="btn-add-journey-hub">
+            <i class="fa-solid fa-plus"></i> Buat Journey Baru
+          </button>
+        </div>
+        <div id="journeys-grid" class="journeys-grid">
+          <!-- Dynamic journey cards injected via JS -->
+        </div>
+      </section>
+
+      <!-- ========================================================= -->
+      <!-- TAB 3: REKAPITULASI & STATISTIK                           -->
+      <!-- ========================================================= -->
+      <section id="tab-analytics" class="tab-pane">
+        <div class="analytics-toolbar">
+          <div class="analytics-title">
+            <h3>Rekapitulasi & Tren Produktivitas</h3>
+            <p class="section-desc">Evaluasi konsistensi dan efisiensi waktu fokus belajarmu.</p>
+          </div>
+          <div class="period-toggle">
+            <button class="period-btn active" data-period="week">Mingguan</button>
+            <button class="period-btn" data-period="month">Bulanan</button>
+          </div>
+        </div>
+
+        <!-- Heatmap Section -->
+        <div class="card heatmap-card">
+          <div class="card-header">
+            <h4><i class="fa-solid fa-cubes-stacked"></i> Heatmap Aktivitas 60 Hari Terakhir</h4>
+            <span class="heatmap-legend">
+              <span>Kurang</span>
+              <span class="cell lvl-0"></span>
+              <span class="cell lvl-1"></span>
+              <span class="cell lvl-2"></span>
+              <span class="cell lvl-3"></span>
+              <span class="cell lvl-4"></span>
+              <span>Padat</span>
+            </span>
+          </div>
+          <div id="heatmap-grid" class="heatmap-grid"></div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid">
+          <div class="card chart-card">
+            <div class="card-header">
+              <h4><i class="fa-solid fa-chart-column"></i> Perbandingan Tugas Selesai vs Total</h4>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="tasksProgressChart"></canvas>
+            </div>
+          </div>
+          <div class="card chart-card">
+            <div class="card-header">
+              <h4><i class="fa-solid fa-chart-pie"></i> Distribusi Kategori Kegiatan</h4>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="categoryDistributionChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================= -->
+      <!-- TAB 4: REFLEKSI & MOOD TRACKER                            -->
+      <!-- ========================================================= -->
+      <section id="tab-reflections" class="tab-pane">
+        <div class="reflections-layout">
+          <div class="card reflection-form-card">
+            <div class="card-header">
+              <h4><i class="fa-solid fa-feather"></i> Catatan Refleksi Hari Ini</h4>
+              <span class="badge" id="reflection-date-badge">Hari Ini</span>
+            </div>
+            <form id="form-daily-note">
+              <div class="form-group">
+                <label>Bagaimana suasana hatimu hari ini?</label>
+                <div class="mood-selector">
+                  <button type="button" class="mood-btn" data-mood="1" title="Sangat Lelah/Buruk">😞</button>
+                  <button type="button" class="mood-btn" data-mood="2" title="Kurang Baik">🙁</button>
+                  <button type="button" class="mood-btn" data-mood="3" title="Biasa Saja">😐</button>
+                  <button type="button" class="mood-btn" data-mood="4" title="Cukup Semangat">🙂</button>
+                  <button type="button" class="mood-btn active" data-mood="5" title="Sangat Produktif / Bahagia">🤩</button>
+                </div>
+                <input type="hidden" id="note-mood-val" value="5">
+              </div>
+
+              <div class="form-group">
+                <label for="note-content">Catatan, Pelajaran & Rasa Syukur</label>
+                <textarea id="note-content" rows="6" placeholder="Apa hal baik yang kamu pelajari hari ini? Hambatan apa yang berhasil kamu atasi?"></textarea>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fa-solid fa-floppy-disk"></i> Simpan Catatan Harian
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card reflection-history-card">
+            <div class="card-header">
+              <h4><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Refleksi</h4>
+            </div>
+            <div id="reflection-history-list" class="reflection-history-list"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL DETAIL HARI (POPOVER PERSIS GAMBAR BAWAH SKETSA)   -->
+  <!-- ========================================================= -->
+  <div class="modal-backdrop" id="modal-day-detail">
+    <div class="modal-card modal-day-popover-card">
+      <div class="day-popover-header">
+        <div>
+          <div class="popover-month-year" id="popover-header-month">OKTOBER</div>
+          <h3 class="popover-day-name" id="popover-header-day">SENIN, 19 2026</h3>
+        </div>
+        <button class="modal-close-btn" data-close="modal-day-detail">&times;</button>
+      </div>
+
+      <div class="popover-kegiatan-section">
+        <div class="popover-kegiatan-title">KEGIATAN:</div>
+        <div id="popover-tasks-list" class="popover-tasks-list">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:1rem; padding-top:0.75rem;">
+        <button class="btn btn-secondary btn-sm" id="btn-popover-add-task">
+          <i class="fa-solid fa-plus"></i> Tambah Kegiatan
+        </button>
+        <button class="btn btn-ghost btn-sm" data-close="modal-day-detail">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: SETTING KEGIATAN BERULANG (RECURRING / DAILY)     -->
+  <!-- ========================================================= -->
+  <div class="modal-backdrop" id="modal-recurring">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-repeat"></i> Atur Jadwal Kegiatan Berulang / Rutin</h3>
+        <button class="modal-close-btn" data-close="modal-recurring">&times;</button>
+      </div>
+      <form id="form-recurring">
+        <div class="form-group">
+          <label for="rec-journey-id">Pilih Journey Tujuan *</label>
+          <select id="rec-journey-id" required>
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="rec-title">Judul Kegiatan *</label>
+          <input type="text" id="rec-title" required placeholder="Contoh: Belajar Python Fungsi & Algoritma">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="rec-category">Kategori</label>
+            <input type="text" id="rec-category" list="category-suggestions" placeholder="Belajar, Coding, Olahraga..." value="Belajar">
+          </div>
+          <div class="form-group">
+            <label for="rec-priority">Prioritas</label>
+            <select id="rec-priority">
+              <option value="1">🔴 Tinggi</option>
+              <option value="2" selected>🟡 Sedang</option>
+              <option value="3">🟢 Rendah</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="rec-start-time">Jam Mulai</label>
+            <input type="time" id="rec-start-time" value="19:00">
+          </div>
+          <div class="form-group">
+            <label for="rec-end-time">Jam Selesai</label>
+            <input type="time" id="rec-end-time" value="20:30">
+          </div>
+        </div>
+
+        <!-- Pemilih Hari dalam Seminggu -->
+        <div class="form-group">
+          <label>Pilih Hari Aktif dalam Seminggu *</label>
+          <div class="weekday-selector">
+            <label class="weekday-pill">
+              <input type="checkbox" name="rec-day" value="0" checked>
+              <span>Senin</span>
+            </label>
+            <label class="weekday-pill">
+              <input type="checkbox" name="rec-day" value="1" checked>
+              <span>Selasa</span>
+            </label>
+            <label class="weekday-pill">
+              <input type="checkbox" name="rec-day" value="2" checked>
+              <span>Rabu</span>
+            </label>
+            <label class="weekday-pill">
+              <input type="checkbox" name="rec-day" value="3">
+              <span>Kamis</span>
+            </label>
+            <label class="weekday-pill">
+              <input type="checkbox" name="rec-day" value="4">
+              <span>Jum'at</span>
+            </label>
+            <label class="weekday-pill">
+              <input type="checkbox" name="rec-day" value="5">
+              <span>Sabtu</span>
+            </label>
+            <label class="weekday-pill">
+              <input type="checkbox" name="rec-day" value="6">
+              <span>Minggu</span>
+            </label>
+          </div>
+          <div class="weekday-shortcuts">
+            <button type="button" class="btn btn-xs btn-ghost" id="btn-shortcut-senin-rabu">Senin, Selasa, Rabu</button>
+            <button type="button" class="btn btn-xs btn-ghost" id="btn-shortcut-weekdays">Hari Kerja (Sen-Jum)</button>
+            <button type="button" class="btn btn-xs btn-ghost" id="btn-shortcut-everyday">Setiap Hari (Sen-Min)</button>
+            <button type="button" class="btn btn-xs btn-ghost" id="btn-shortcut-weekend">Akhir Pekan (Sab-Min)</button>
+          </div>
+        </div>
+
+        <!-- Rentang Tanggal -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="rec-start-date">Mulai dari Tanggal *</label>
+            <input type="date" id="rec-start-date" required>
+          </div>
+          <div class="form-group">
+            <label for="rec-end-date">Sampai Tanggal *</label>
+            <input type="date" id="rec-end-date" required>
+          </div>
+        </div>
+        <div class="date-range-shortcuts">
+          <span>Preset Durasi:</span>
+          <button type="button" class="btn btn-xs btn-ghost" id="btn-dur-1w">1 Minggu Ini</button>
+          <button type="button" class="btn btn-xs btn-ghost" id="btn-dur-2w">2 Minggu</button>
+          <button type="button" class="btn btn-xs btn-ghost" id="btn-dur-1m">1 Bulan Ini</button>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" data-close="modal-recurring">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn-generate-recurring">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Buat Jadwal ke Kalender
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: ADD / EDIT SINGLE TASK                             -->
+  <!-- ========================================================= -->
+  <div class="modal-backdrop" id="modal-task">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-task-title"><i class="fa-solid fa-list-check"></i> Tambah Kegiatan Baru</h3>
+        <button class="modal-close-btn" data-close="modal-task">&times;</button>
+      </div>
+      <form id="form-task">
+        <input type="hidden" id="task-id">
+        <div class="form-group">
+          <label for="task-journey-id">Pilih Journey *</label>
+          <select id="task-journey-id" required></select>
+        </div>
+        <div class="form-group">
+          <label for="task-title">Judul Kegiatan *</label>
+          <input type="text" id="task-title" required placeholder="Contoh: Belajar fungsi & lambda (19.00 - 20.30)">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="task-category">Kategori</label>
+            <input type="text" id="task-category" list="category-suggestions" placeholder="Belajar, Coding, Olahraga...">
+            <datalist id="category-suggestions">
+              <option value="Belajar"></option>
+              <option value="Coding"></option>
+              <option value="Kesehatan"></option>
+              <option value="Latihan"></option>
+              <option value="Desain"></option>
+              <option value="Pekerjaan"></option>
+            </datalist>
+          </div>
+          <div class="form-group">
+            <label for="task-priority">Prioritas</label>
+            <select id="task-priority">
+              <option value="1">🔴 Tinggi</option>
+              <option value="2" selected>🟡 Sedang</option>
+              <option value="3">🟢 Rendah</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="task-date">Tanggal Kegiatan *</label>
+            <input type="date" id="task-date" required>
+          </div>
+          <div class="form-group">
+            <label for="task-repeat">Perulangan Mandiri</label>
+            <select id="task-repeat">
+              <option value="none">Tidak Berulang</option>
+              <option value="daily">Harian (Daily)</option>
+              <option value="weekly">Mingguan (Weekly)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="task-start-time">Jam Mulai</label>
+            <input type="time" id="task-start-time">
+          </div>
+          <div class="form-group">
+            <label for="task-end-time">Jam Selesai</label>
+            <input type="time" id="task-end-time">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" data-close="modal-task">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-task">Simpan Kegiatan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: ADD / EDIT JOURNEY                                 -->
+  <!-- ========================================================= -->
+  <div class="modal-backdrop" id="modal-journey">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-journey-title"><i class="fa-solid fa-route"></i> Tambah Journey Baru</h3>
+        <button class="modal-close-btn" data-close="modal-journey">&times;</button>
+      </div>
+      <form id="form-journey">
+        <input type="hidden" id="journey-id">
+        <div class="form-group">
+          <label for="journey-title">Nama Journey / Target Besar *</label>
+          <input type="text" id="journey-title" required placeholder="Contoh: Belajar Python & AI 3 Bulan">
+        </div>
+        <div class="form-group">
+          <label for="journey-desc">Deskripsi & Motivasi</label>
+          <textarea id="journey-desc" rows="3" placeholder="Target apa yang ingin dicapai dan bagaimana strateginya..."></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="journey-start-date">Tanggal Mulai *</label>
+            <input type="date" id="journey-start-date" required>
+          </div>
+          <div class="form-group">
+            <label for="journey-target-date">Target Selesai</label>
+            <input type="date" id="journey-target-date">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" data-close="modal-journey">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-journey">Simpan Journey</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- App Script -->
+  <script src="/app.js"></script>
+</body>
+</html>
