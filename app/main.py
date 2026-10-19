@@ -8,14 +8,21 @@ from sqlalchemy.orm import Session
 
 from app.database import Base, engine, SessionLocal
 from app import models
-from app.routers import journeys, tasks, stats, notes
+from app.routers import journeys, tasks, stats, notes, recurring
+from sqlalchemy import text
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("journey_tracker")
 
-# Create tables
+# Create tables & migrate columns if needed
 try:
     Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE tasks ADD COLUMN recurring_schedule_id INT NULL"))
+            conn.commit()
+        except Exception:
+            pass
     logger.info("Database tables initialized successfully.")
 except Exception as e:
     logger.error(f"Error creating database tables: {e}")
@@ -38,6 +45,7 @@ app.add_middleware(
 # Include Routers
 app.include_router(journeys.router)
 app.include_router(tasks.router)
+app.include_router(recurring.router)
 app.include_router(stats.router)
 app.include_router(notes.router)
 

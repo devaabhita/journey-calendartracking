@@ -140,7 +140,10 @@ function setupEventListeners() {
   document.getElementById("form-recurring").addEventListener("submit", handleRecurringFormSubmit);
   document.getElementById("form-daily-note")?.addEventListener("submit", handleDailyNoteSubmit);
 
-  // Recurring Presets
+  // Recurring Presets & Tabs
+  document.getElementById("btn-rec-tab-list")?.addEventListener("click", () => switchRecurringTab("list"));
+  document.getElementById("btn-rec-tab-form")?.addEventListener("click", () => switchRecurringTab("form"));
+  document.getElementById("btn-cancel-edit-rec")?.addEventListener("click", cancelEditRecurringSchedule);
   setupRecurringPresets();
 
   // Mood Selector Buttons
@@ -490,6 +493,11 @@ function renderDayPanel(dateStr) {
           <div class="p-task-meta">
             <span><i class="fa-solid fa-route"></i> ${escapeHtml(t.journey_title || 'Journey')}</span>
             ${timeDisplay ? `<span>• <i class="fa-regular fa-clock"></i> ${timeDisplay}</span>` : ''}
+            ${t.recurring_schedule_id ? `
+              <span class="tag-recurring-link" onclick="openRecurringModal(${t.recurring_schedule_id})" title="Edit seluruh jadwal berulang ini">
+                <i class="fa-solid fa-repeat"></i> Edit Seri
+              </span>
+            ` : ''}
           </div>
         </div>
         <span class="p-status-badge ${statusClass}">${statusText}</span>
@@ -536,6 +544,11 @@ function openDayPopover(dateStr) {
               onchange="toggleTaskFromPopover(${t.id})"
             >
             <span class="popover-task-text">• ${escapeHtml(t.title)}</span>
+            ${t.recurring_schedule_id ? `
+              <span class="tag-recurring-link" onclick="closeModal('modal-day-detail'); openRecurringModal(${t.recurring_schedule_id})" title="Edit seluruh jadwal berulang ini">
+                <i class="fa-solid fa-repeat"></i> Edit Seri
+              </span>
+            ` : ''}
           </div>
           <span class="p-status-badge ${statusClass}">${statusText}</span>
         </div>
@@ -692,36 +705,167 @@ function closeModal(modalId) {
   document.getElementById(modalId).classList.remove("open");
 }
 
-// 1. RECURRING SCHEDULE MODAL
-function openRecurringModal() {
+// 1. RECURRING SCHEDULE MANAGEMENT
+const DAY_NAMES_FULL = ["Senin", "Selasa", "Rabu", "Kamis", "Jum'at", "Sabtu", "Minggu"];
+
+async function loadRecurringSchedules() {
+  try {
+    const res = await fetch(`${API_BASE}/recurring-schedules`);
+    if (!res.ok) throw new Error("Gagal mengambil data jadwal berulang");
+    const schedules = await res.json();
+    state.recurringSchedules = schedules;
+
+    const countElem = document.getElementById("rec-list-count");
+    if (countElem) countElem.textContent = schedules.length;
+
+    const container = document.getElementById("rec-schedules-container");
+    if (!container) return;
+
+    if (schedules.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state" style="padding: 2.5rem 1rem;">
+          <i class="fa-solid fa-repeat" style="font-size: 2.2rem; color: var(--text-subtle); margin-bottom: 0.75rem;"></i>
+          <p style="font-size: 0.9rem;">Belum ada jadwal kegiatan berulang.</p>
+          <button type="button" class="btn btn-sm btn-primary" onclick="switchRecurringTab('form')">
+            <i class="fa-solid fa-plus"></i> Buat Jadwal Rutin Pertama
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = schedules.map(s => {
+      const activeDaysFormatted = s.days_of_week
+        .map(d => DAY_NAMES_FULL[d] || d)
+        .join(", ");
+
+      const timeFormatted = (s.start_time || s.end_time)
+        ? `${formatTime(s.start_time)} - ${formatTime(s.end_time)}`
+        : "Fleksibel";
+
+      return `
+        <div class="recurring-card" id="rec-card-${s.id}">
+          <div style="flex: 1; min-width: 0;">
+            <div class="rec-card-title">${escapeHtml(s.title)}</div>
+            <div class="rec-card-meta">
+              <span><i class="fa-solid fa-route" style="color:var(--accent-primary);"></i> ${escapeHtml(s.journey_title || 'Journey')}</span>
+              <span><i class="fa-regular fa-clock"></i> ${timeFormatted}</span>
+              <span class="rec-days-badge"><i class="fa-solid fa-calendar-check"></i> ${activeDaysFormatted}</span>
+              <span><i class="fa-regular fa-calendar"></i> ${s.start_date} s.d. ${s.end_date}</span>
+              <span>(${s.completed_tasks}/${s.total_tasks} selesai)</span>
+            </div>
+          </div>
+          <div class="rec-card-actions">
+            <button type="button" class="btn btn-sm btn-secondary" onclick="startEditRecurringScheduleById(${s.id})" title="Edit Seluruh Jadwal">
+              <i class="fa-solid fa-pen"></i> Edit
+            </button>
+            <button type="button" class="btn-icon btn-sm" onclick="deleteRecurringSchedule(${s.id}, '${escapeJs(s.title)}')" title="Hapus Jadwal Rutin">
+              <i class="fa-solid fa-trash-can" style="color:#ef4444;"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } catch (err) {
+    console.error("Error loading recurring schedules:", err);
+  }
+}
+
+function switchRecurringTab(tabName) {
+  const isList = (tabName === "list");
+  document.getElementById("btn-rec-tab-list")?.classList.toggle("active", isList);
+  document.getElementById("btn-rec-tab-form")?.classList.toggle("active", !isList);
+
+  document.getElementById("rec-view-list")?.classList.toggle("active", isList);
+  document.getElementById("rec-view-form")?.classList.toggle("active", !isList);
+}
+
+async function openRecurringModal(scheduleIdToEdit = null) {
+  await loadRecurringSchedules();
+
+  if (scheduleIdToEdit) {
+    const s = state.recurringSchedules?.find(item => item.id === scheduleIdToEdit);
+    if (s) {
+      startEditRecurringSchedule(s);
+      openModal("modal-recurring");
+      return;
+    }
+  }
+
+  // If no schedules yet, open form tab
+  if (!state.recurringSchedules || state.recurringSchedules.length === 0) {
+    cancelEditRecurringSchedule();
+    switchRecurringTab("form");
+  } else {
+    switchRecurringTab("list");
+  }
+
+  openModal("modal-recurring");
+}
+
+function startEditRecurringScheduleById(id) {
+  const s = state.recurringSchedules?.find(item => item.id === id);
+  if (s) {
+    startEditRecurringSchedule(s);
+  }
+}
+
+function startEditRecurringSchedule(schedule) {
+  switchRecurringTab("form");
+
+  document.getElementById("rec-schedule-id").value = schedule.id;
+  document.getElementById("rec-journey-id").value = schedule.journey_id;
+  document.getElementById("rec-title").value = schedule.title;
+  document.getElementById("rec-category").value = schedule.category || "General";
+  document.getElementById("rec-priority").value = schedule.priority || 2;
+  document.getElementById("rec-start-time").value = schedule.start_time ? schedule.start_time.substring(0, 5) : "";
+  document.getElementById("rec-end-time").value = schedule.end_time ? schedule.end_time.substring(0, 5) : "";
+  document.getElementById("rec-start-date").value = schedule.start_date;
+  document.getElementById("rec-end-date").value = schedule.end_date;
+
+  const days = schedule.days_of_week || [];
+  document.querySelectorAll("input[name='rec-day']").forEach(cb => {
+    cb.checked = days.includes(parseInt(cb.value, 10));
+  });
+
+  const alertBanner = document.getElementById("rec-edit-alert");
+  if (alertBanner) alertBanner.style.display = "flex";
+  const titleText = document.getElementById("rec-editing-title-text");
+  if (titleText) titleText.textContent = schedule.title;
+  const tabLabel = document.getElementById("rec-tab-form-label");
+  if (tabLabel) tabLabel.textContent = "Edit Jadwal";
+  const submitText = document.getElementById("rec-submit-btn-text");
+  if (submitText) submitText.textContent = "Simpan Perubahan Jadwal";
+}
+
+function cancelEditRecurringSchedule() {
   const form = document.getElementById("form-recurring");
   form.reset();
+  document.getElementById("rec-schedule-id").value = "";
+  const alertBanner = document.getElementById("rec-edit-alert");
+  if (alertBanner) alertBanner.style.display = "none";
+  const tabLabel = document.getElementById("rec-tab-form-label");
+  if (tabLabel) tabLabel.textContent = "Buat Jadwal Baru";
+  const submitText = document.getElementById("rec-submit-btn-text");
+  if (submitText) submitText.textContent = "Buat Jadwal ke Kalender";
 
-  // Set default dates: today to +6 days
+  // Pre-fill default dates
   const today = new Date();
   const nextWeek = new Date();
   nextWeek.setDate(today.getDate() + 6);
-
   document.getElementById("rec-start-date").value = formatDateInput(today);
   document.getElementById("rec-end-date").value = formatDateInput(nextWeek);
   document.getElementById("rec-start-time").value = "19:00";
   document.getElementById("rec-end-time").value = "20:30";
 
-  // Select first journey if available
   if (state.journeys.length > 0) {
     document.getElementById("rec-journey-id").value = state.journeys[0].id;
   }
-
-  // Default days: Senin, Selasa, Rabu
-  document.querySelectorAll("input[name='rec-day']").forEach(cb => {
-    cb.checked = ["0", "1", "2"].includes(cb.value);
-  });
-
-  openModal("modal-recurring");
 }
 
 async function handleRecurringFormSubmit(e) {
   e.preventDefault();
+  const scheduleId = document.getElementById("rec-schedule-id").value;
   const journeyId = parseInt(document.getElementById("rec-journey-id").value, 10);
   const title = document.getElementById("rec-title").value.trim();
   const category = document.getElementById("rec-category").value.trim() || "General";
@@ -754,20 +898,35 @@ async function handleRecurringFormSubmit(e) {
   };
 
   try {
-    const res = await fetch(`${API_BASE}/tasks/recurring`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    let res;
+    if (scheduleId) {
+      res = await fetch(`${API_BASE}/recurring-schedules/${scheduleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } else {
+      res = await fetch(`${API_BASE}/recurring-schedules`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    }
 
     if (!res.ok) {
       const errData = await res.json();
-      throw new Error(errData.detail || "Gagal membuat jadwal berulang");
+      throw new Error(errData.detail || "Gagal memproses jadwal berulang");
     }
 
-    const createdTasks = await res.json();
     closeModal("modal-recurring");
-    showToast(`✨ Berhasil menjadwalkan ${createdTasks.length} kegiatan ke kalender!`, "success");
+    showToast(
+      scheduleId
+        ? "🎉 Jadwal berulang & seluruh task berhasil diperbarui!"
+        : "✨ Berhasil membuat jadwal berulang ke kalender!",
+      "success"
+    );
+
+    cancelEditRecurringSchedule();
 
     await Promise.all([
       loadCalendarMonth(),
@@ -776,6 +935,27 @@ async function handleRecurringFormSubmit(e) {
     ]);
   } catch (err) {
     showToast("Error: " + err.message, "error");
+  }
+}
+
+async function deleteRecurringSchedule(scheduleId, scheduleTitle) {
+  if (!confirm(`Hapus jadwal berulang "${scheduleTitle}" beserta seluruh task terkait di kalender?`)) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/recurring-schedules/${scheduleId}`, {
+      method: "DELETE"
+    });
+    if (!res.ok) throw new Error("Gagal menghapus jadwal berulang");
+
+    showToast("Jadwal berulang telah dihapus.", "info");
+    await Promise.all([
+      loadRecurringSchedules(),
+      loadCalendarMonth(),
+      loadJourneys(),
+      loadGlobalStats()
+    ]);
+  } catch (err) {
+    showToast("Gagal menghapus: " + err.message, "error");
   }
 }
 

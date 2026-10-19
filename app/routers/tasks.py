@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from app.database import get_db
-from app.models import Task, Journey
+from app.models import Task, Journey, RecurringSchedule
 from app.schemas import TaskCreate, TaskUpdate, TaskResponse, TaskRecurringCreate
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
@@ -25,6 +25,7 @@ def enrich_task_response(task: Task) -> TaskResponse:
         is_done=task.is_done,
         done_at=task.done_at,
         repeat_rule=task.repeat_rule or "none",
+        recurring_schedule_id=task.recurring_schedule_id,
     )
 
 
@@ -93,6 +94,22 @@ def create_recurring_tasks(rec_in: TaskRecurringCreate, db: Session = Depends(ge
     if rec_in.start_date > rec_in.end_date:
         raise HTTPException(status_code=400, detail="Tanggal mulai tidak boleh lebih dari tanggal selesai")
 
+    days_str = ",".join(str(d) for d in sorted(rec_in.days_of_week))
+    schedule = RecurringSchedule(
+        journey_id=rec_in.journey_id,
+        title=rec_in.title,
+        category=rec_in.category or "General",
+        priority=rec_in.priority or 2,
+        start_time=rec_in.start_time,
+        end_time=rec_in.end_time,
+        days_of_week=days_str,
+        start_date=rec_in.start_date,
+        end_date=rec_in.end_date,
+    )
+    db.add(schedule)
+    db.commit()
+    db.refresh(schedule)
+
     created_tasks = []
     current_d = rec_in.start_date
     while current_d <= rec_in.end_date:
@@ -106,6 +123,7 @@ def create_recurring_tasks(rec_in: TaskRecurringCreate, db: Session = Depends(ge
             if not existing:
                 task = Task(
                     journey_id=rec_in.journey_id,
+                    recurring_schedule_id=schedule.id,
                     title=rec_in.title,
                     category=rec_in.category or "General",
                     priority=rec_in.priority or 2,

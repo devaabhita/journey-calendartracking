@@ -48,10 +48,31 @@ class Task(Base):
     repeat_rule = Column(String(10), default="none")  # 'none' | 'daily' | 'weekly'
 
     journey = relationship("Journey", back_populates="tasks")
+    recurring_schedule_id = Column(Integer, ForeignKey("recurring_schedules.id", ondelete="CASCADE"), nullable=True)
+    recurring_schedule = relationship("RecurringSchedule", back_populates="tasks")
 
     __table_args__ = (
         Index("idx_task_date", "task_date"),
     )
+
+
+class RecurringSchedule(Base):
+    __tablename__ = "recurring_schedules"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    journey_id = Column(Integer, ForeignKey("journeys.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(200), nullable=False)
+    category = Column(String(50), nullable=True, default="General")
+    priority = Column(Integer, default=2)
+    start_time = Column(Time, nullable=True)
+    end_time = Column(Time, nullable=True)
+    days_of_week = Column(String(50), nullable=False)  # e.g. "0,1,2" (0=Senin ... 6=Minggu)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    created_at = Column(DateTime, default=utc_now)
+
+    journey = relationship("Journey")
+    tasks = relationship("Task", back_populates="recurring_schedule", cascade="all, delete-orphan")
 
 
 class DailyNote(Base):

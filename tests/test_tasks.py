@@ -196,3 +196,72 @@ def test_recurring_tasks_and_calendar():
     assert "2026-10-19" in cal_data["days"]
     assert cal_data["days"]["2026-10-19"]["total"] == 1
 
+
+def test_edit_recurring_schedule():
+    # 1. Create Journey
+    j_resp = client.post(
+        "/journeys",
+        json={
+            "title": "Journey Web Development",
+            "start_date": "2026-10-01",
+            "target_date": "2026-10-31",
+        },
+    )
+    j_id = j_resp.json()["id"]
+
+    # 2. Create Recurring Schedule (Senin & Selasa: Oct 19 & Oct 20)
+    create_resp = client.post(
+        "/recurring-schedules",
+        json={
+            "journey_id": j_id,
+            "title": "Latihan CSS & HTML",
+            "category": "Frontend",
+            "priority": 2,
+            "start_time": "18:00:00",
+            "end_time": "19:00:00",
+            "days_of_week": [0, 1],  # Senin, Selasa
+            "start_date": "2026-10-19",
+            "end_date": "2026-10-25",
+        },
+    )
+    assert create_resp.status_code == 201
+    schedule = create_resp.json()
+    schedule_id = schedule["id"]
+    assert schedule["total_tasks"] == 2
+
+    # 3. Verify tasks created
+    tasks = client.get(f"/tasks?journey_id={j_id}").json()
+    assert len(tasks) == 2
+    assert all(t["title"] == "Latihan CSS & HTML" for t in tasks)
+    assert all(t["recurring_schedule_id"] == schedule_id for t in tasks)
+
+    # 4. Edit recurring schedule: change title to 'Latihan CSS Grid & Flexbox', time, and add Rabu (2)
+    update_resp = client.put(
+        f"/recurring-schedules/{schedule_id}",
+        json={
+            "title": "Latihan CSS Grid & Flexbox",
+            "start_time": "20:00:00",
+            "end_time": "21:30:00",
+            "days_of_week": [0, 1, 2],  # Senin, Selasa, Rabu
+        },
+    )
+    assert update_resp.status_code == 200
+    updated_sched = update_resp.json()
+    assert updated_sched["title"] == "Latihan CSS Grid & Flexbox"
+    assert updated_sched["total_tasks"] == 3  # Now 3 tasks (Mon, Tue, Wed)!
+
+    # 5. Verify all tasks in series updated automatically!
+    updated_tasks = client.get(f"/tasks?journey_id={j_id}").json()
+    assert len(updated_tasks) == 3
+    assert all(t["title"] == "Latihan CSS Grid & Flexbox" for t in updated_tasks)
+    assert all(t["start_time"] == "20:00:00" for t in updated_tasks)
+
+    # 6. Delete recurring schedule
+    del_resp = client.delete(f"/recurring-schedules/{schedule_id}")
+    assert del_resp.status_code == 200
+
+    # Tasks should be removed
+    remaining_tasks = client.get(f"/tasks?journey_id={j_id}").json()
+    assert len(remaining_tasks) == 0
+
+

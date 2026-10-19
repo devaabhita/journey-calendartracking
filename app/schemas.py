@@ -79,6 +79,7 @@ class TaskResponse(BaseModel):
     is_done: bool = False
     done_at: Optional[datetime] = None
     repeat_rule: Optional[str] = "none"
+    recurring_schedule_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -93,6 +94,44 @@ class TaskRecurringCreate(BaseModel):
     days_of_week: List[int] = Field(..., description="0=Senin, 1=Selasa, 2=Rabu, 3=Kamis, 4=Jumat, 5=Sabtu, 6=Minggu")
     start_date: date
     end_date: date
+
+
+class RecurringScheduleBase(BaseModel):
+    journey_id: int
+    title: str
+    category: Optional[str] = "General"
+    priority: Optional[int] = Field(2, ge=1, le=3)
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
+    days_of_week: List[int]
+    start_date: date
+    end_date: date
+
+
+class RecurringScheduleCreate(RecurringScheduleBase):
+    pass
+
+
+class RecurringScheduleUpdate(BaseModel):
+    journey_id: Optional[int] = None
+    title: Optional[str] = None
+    category: Optional[str] = None
+    priority: Optional[int] = Field(None, ge=1, le=3)
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
+    days_of_week: Optional[List[int]] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+
+
+class RecurringScheduleResponse(RecurringScheduleBase):
+    id: int
+    journey_title: Optional[str] = None
+    total_tasks: int = 0
+    completed_tasks: int = 0
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==========================================

@@ -353,119 +353,155 @@
   </div>
 
   <!-- ========================================================= -->
-  <!-- MODAL: SETTING KEGIATAN BERULANG (RECURRING / DAILY)     -->
+  <!-- MODAL: KELOLA & ATUR KEGIATAN BERULANG (RECURRING / DAILY) -->
   <!-- ========================================================= -->
   <div class="modal-backdrop" id="modal-recurring">
     <div class="modal-card modal-lg">
       <div class="modal-header">
-        <h3><i class="fa-solid fa-repeat"></i> Atur Jadwal Kegiatan Berulang / Rutin</h3>
+        <div>
+          <h3 id="modal-recurring-headline"><i class="fa-solid fa-repeat"></i> Kelola Jadwal Kegiatan Berulang</h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Atur dan perbarui kegiatan rutin yang berjalan otomatis di kalender.
+          </p>
+        </div>
         <button class="modal-close-btn" data-close="modal-recurring">&times;</button>
       </div>
-      <form id="form-recurring">
-        <div class="form-group">
-          <label for="rec-journey-id">Pilih Journey Tujuan *</label>
-          <select id="rec-journey-id" required>
-            <!-- Populated dynamically -->
-          </select>
-        </div>
 
-        <div class="form-group">
-          <label for="rec-title">Judul Kegiatan *</label>
-          <input type="text" id="rec-title" required placeholder="Contoh: Belajar Python Fungsi & Algoritma">
-        </div>
+      <!-- Tab Switcher inside Modal -->
+      <div class="recurring-modal-tabs">
+        <button type="button" class="rec-tab-btn active" id="btn-rec-tab-list">
+          <i class="fa-solid fa-table-list"></i> Daftar Jadwal Rutin (<span id="rec-list-count">0</span>)
+        </button>
+        <button type="button" class="rec-tab-btn" id="btn-rec-tab-form">
+          <i class="fa-solid fa-pen-to-square"></i> <span id="rec-tab-form-label">Buat Jadwal Baru</span>
+        </button>
+      </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label for="rec-category">Kategori</label>
-            <input type="text" id="rec-category" list="category-suggestions" placeholder="Belajar, Coding, Olahraga..." value="Belajar">
+      <!-- TAB 1: DAFTAR JADWAL BERULANG -->
+      <div id="rec-view-list" class="rec-view-pane active">
+        <div id="rec-schedules-container" class="rec-schedules-container">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- TAB 2: FORM BUAT / EDIT JADWAL -->
+      <div id="rec-view-form" class="rec-view-pane">
+        <div class="edit-alert-banner" id="rec-edit-alert" style="display: none;">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <i class="fa-solid fa-pen-fancy"></i>
+            <span>Sedang mengedit jadwal: <strong id="rec-editing-title-text"></strong></span>
           </div>
+          <button type="button" class="btn btn-xs btn-ghost" id="btn-cancel-edit-rec">Batal Edit (Buat Baru)</button>
+        </div>
+
+        <form id="form-recurring">
+          <input type="hidden" id="rec-schedule-id">
+
           <div class="form-group">
-            <label for="rec-priority">Prioritas</label>
-            <select id="rec-priority">
-              <option value="1">🔴 Tinggi</option>
-              <option value="2" selected>🟡 Sedang</option>
-              <option value="3">🟢 Rendah</option>
+            <label for="rec-journey-id">Pilih Journey Tujuan *</label>
+            <select id="rec-journey-id" required>
+              <!-- Populated dynamically -->
             </select>
           </div>
-        </div>
 
-        <div class="form-row">
           <div class="form-group">
-            <label for="rec-start-time">Jam Mulai</label>
-            <input type="time" id="rec-start-time" value="19:00">
+            <label for="rec-title">Judul Kegiatan *</label>
+            <input type="text" id="rec-title" required placeholder="Contoh: Belajar Python Fungsi & Algoritma">
           </div>
-          <div class="form-group">
-            <label for="rec-end-time">Jam Selesai</label>
-            <input type="time" id="rec-end-time" value="20:30">
-          </div>
-        </div>
 
-        <!-- Pemilih Hari dalam Seminggu -->
-        <div class="form-group">
-          <label>Pilih Hari Aktif dalam Seminggu *</label>
-          <div class="weekday-selector">
-            <label class="weekday-pill">
-              <input type="checkbox" name="rec-day" value="0" checked>
-              <span>Senin</span>
-            </label>
-            <label class="weekday-pill">
-              <input type="checkbox" name="rec-day" value="1" checked>
-              <span>Selasa</span>
-            </label>
-            <label class="weekday-pill">
-              <input type="checkbox" name="rec-day" value="2" checked>
-              <span>Rabu</span>
-            </label>
-            <label class="weekday-pill">
-              <input type="checkbox" name="rec-day" value="3">
-              <span>Kamis</span>
-            </label>
-            <label class="weekday-pill">
-              <input type="checkbox" name="rec-day" value="4">
-              <span>Jum'at</span>
-            </label>
-            <label class="weekday-pill">
-              <input type="checkbox" name="rec-day" value="5">
-              <span>Sabtu</span>
-            </label>
-            <label class="weekday-pill">
-              <input type="checkbox" name="rec-day" value="6">
-              <span>Minggu</span>
-            </label>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="rec-category">Kategori</label>
+              <input type="text" id="rec-category" list="category-suggestions" placeholder="Belajar, Coding, Olahraga..." value="Belajar">
+            </div>
+            <div class="form-group">
+              <label for="rec-priority">Prioritas</label>
+              <select id="rec-priority">
+                <option value="1">🔴 Tinggi</option>
+                <option value="2" selected>🟡 Sedang</option>
+                <option value="3">🟢 Rendah</option>
+              </select>
+            </div>
           </div>
-          <div class="weekday-shortcuts">
-            <button type="button" class="btn btn-xs btn-ghost" id="btn-shortcut-senin-rabu">Senin, Selasa, Rabu</button>
-            <button type="button" class="btn btn-xs btn-ghost" id="btn-shortcut-weekdays">Hari Kerja (Sen-Jum)</button>
-            <button type="button" class="btn btn-xs btn-ghost" id="btn-shortcut-everyday">Setiap Hari (Sen-Min)</button>
-            <button type="button" class="btn btn-xs btn-ghost" id="btn-shortcut-weekend">Akhir Pekan (Sab-Min)</button>
-          </div>
-        </div>
 
-        <!-- Rentang Tanggal -->
-        <div class="form-row">
-          <div class="form-group">
-            <label for="rec-start-date">Mulai dari Tanggal *</label>
-            <input type="date" id="rec-start-date" required>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="rec-start-time">Jam Mulai</label>
+              <input type="time" id="rec-start-time" value="19:00">
+            </div>
+            <div class="form-group">
+              <label for="rec-end-time">Jam Selesai</label>
+              <input type="time" id="rec-end-time" value="20:30">
+            </div>
           </div>
-          <div class="form-group">
-            <label for="rec-end-date">Sampai Tanggal *</label>
-            <input type="date" id="rec-end-date" required>
-          </div>
-        </div>
-        <div class="date-range-shortcuts">
-          <span>Preset Durasi:</span>
-          <button type="button" class="btn btn-xs btn-ghost" id="btn-dur-1w">1 Minggu Ini</button>
-          <button type="button" class="btn btn-xs btn-ghost" id="btn-dur-2w">2 Minggu</button>
-          <button type="button" class="btn btn-xs btn-ghost" id="btn-dur-1m">1 Bulan Ini</button>
-        </div>
 
-        <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" data-close="modal-recurring">Batal</button>
-          <button type="submit" class="btn btn-primary" id="btn-generate-recurring">
-            <i class="fa-solid fa-wand-magic-sparkles"></i> Buat Jadwal ke Kalender
-          </button>
-        </div>
-      </form>
+          <!-- Pemilih Hari dalam Seminggu -->
+          <div class="form-group">
+            <label>Pilih Hari Aktif dalam Seminggu *</label>
+            <div class="weekday-selector">
+              <label class="weekday-pill">
+                <input type="checkbox" name="rec-day" value="0" checked>
+                <span>Senin</span>
+              </label>
+              <label class="weekday-pill">
+                <input type="checkbox" name="rec-day" value="1" checked>
+                <span>Selasa</span>
+              </label>
+              <label class="weekday-pill">
+                <input type="checkbox" name="rec-day" value="2" checked>
+                <span>Rabu</span>
+              </label>
+              <label class="weekday-pill">
+                <input type="checkbox" name="rec-day" value="3">
+                <span>Kamis</span>
+              </label>
+              <label class="weekday-pill">
+                <input type="checkbox" name="rec-day" value="4">
+                <span>Jum'at</span>
+              </label>
+              <label class="weekday-pill">
+                <input type="checkbox" name="rec-day" value="5">
+                <span>Sabtu</span>
+              </label>
+              <label class="weekday-pill">
+                <input type="checkbox" name="rec-day" value="6">
+                <span>Minggu</span>
+              </label>
+            </div>
+            <div class="weekday-shortcuts">
+              <button type="button" class="btn btn-xs btn-ghost" id="btn-shortcut-senin-rabu">Senin, Selasa, Rabu</button>
+              <button type="button" class="btn btn-xs btn-ghost" id="btn-shortcut-weekdays">Hari Kerja (Sen-Jum)</button>
+              <button type="button" class="btn btn-xs btn-ghost" id="btn-shortcut-everyday">Setiap Hari (Sen-Min)</button>
+              <button type="button" class="btn btn-xs btn-ghost" id="btn-shortcut-weekend">Akhir Pekan (Sab-Min)</button>
+            </div>
+          </div>
+
+          <!-- Rentang Tanggal -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="rec-start-date">Mulai dari Tanggal *</label>
+              <input type="date" id="rec-start-date" required>
+            </div>
+            <div class="form-group">
+              <label for="rec-end-date">Sampai Tanggal *</label>
+              <input type="date" id="rec-end-date" required>
+            </div>
+          </div>
+          <div class="date-range-shortcuts">
+            <span>Preset Durasi:</span>
+            <button type="button" class="btn btn-xs btn-ghost" id="btn-dur-1w">1 Minggu Ini</button>
+            <button type="button" class="btn btn-xs btn-ghost" id="btn-dur-2w">2 Minggu</button>
+            <button type="button" class="btn btn-xs btn-ghost" id="btn-dur-1m">1 Bulan Ini</button>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" data-close="modal-recurring">Tutup</button>
+            <button type="submit" class="btn btn-primary" id="btn-generate-recurring">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> <span id="rec-submit-btn-text">Buat Jadwal ke Kalender</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 
