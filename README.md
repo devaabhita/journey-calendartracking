@@ -40,7 +40,7 @@ Journey (tujuan besar, mis: "Mastering Python & AI 3 Bulan")
 |---|---|---|
 | **Bahasa** | Python 3.11+ / 3.14 | Fleksibel, modern, dan ekosistem kaya |
 | **Backend** | FastAPI | Cepat, async, otomatis membuat dokumentasi OpenAPI & Swagger UI |
-| **Database** | MySQL (`todolist`) / SQLite fallback | Didukung dengan koneksi SQLAlchemy + PyMySQL |
+| **Database** | MySQL / SQLite fallback | Didukung dengan koneksi SQLAlchemy + PyMySQL |
 | **ORM** | SQLAlchemy 2.0 | Akses database yang aman dan modular |
 | **Validasi** | Pydantic v2 | Validasi skema request dan response otomatis |
 | **Frontend** | Vanilla HTML5 + CSS3 + Modern JavaScript + Chart.js | UI modern bertema gelap, glassmorphism, responsif, dan ringan tanpa build step |
